@@ -32,28 +32,63 @@ PDF/URL/MD ──► loaders ──► chunking ──► embeddings ──► P
 
 | Component | File | Status |
 |---|---|---|
-| PDF loader (PyMuPDF, layout-aware) | `loaders.py` | ✅ |
-| Token-budgeted recursive chunker | `chunking.py` | ✅ |
-| Local embeddings (bge-small-en-v1.5) | `embeddings.py` | ✅ |
-| Postgres + pgvector schema | `schema.sql`, `db.py` | ✅ |
-| URL + Markdown loaders | `loaders.py` | ⬜ Day 2 |
-| Hybrid retrieval + RRF + rerank | `retrieve.py` | ⬜ Day 3 |
-| Grounded answers + refusal | `answer.py` | ⬜ Day 4 |
-| Self-correction retry, tracing, API | `correct.py`, `api.py` | ⬜ Day 5 |
+| PDF loader (PyMuPDF, layout-aware) | `rag/loaders.py` | ✅ |
+| Token-budgeted recursive chunker | `rag/chunking.py` | ✅ |
+| Local embeddings (bge-small-en-v1.5) | `rag/embeddings.py` | ✅ |
+| Postgres + pgvector schema | `schema.sql`, `rag/db.py` | ✅ |
+| URL + Markdown loaders | `rag/loaders.py` | ⬜ Day 2 |
+| Hybrid retrieval + RRF + rerank | `rag/retrieve.py` | ⬜ Day 3 |
+| Grounded answers + refusal | `rag/answer.py` | ⬜ Day 4 |
+| Self-correction retry, tracing, API | `rag/correct.py`, `rag/api.py` | ⬜ Day 5 |
 | Eval set + metrics | `eval/` | ⬜ Day 6 |
+
+## Project layout
+
+```
+rag/                application package
+  config.py         model, chunk-budget and connection settings
+  models.py         Pydantic contracts: RawDocument, Page, Chunk
+  loaders.py        source → RawDocument (layout-aware PDF extraction)
+  chunking.py       RawDocument → token-budgeted chunks with overlap
+  embeddings.py     local bi-encoder; separate query/document paths
+  db.py             pool, schema bootstrap, idempotent upserts
+  ingest.py         orchestration + CLI
+eval/               labelled Q/A set and scoring harness
+schema.sql          Postgres DDL: tables, HNSW and GIN indexes
+docker-compose.yml  Postgres 16 + pgvector
+corpus/             source documents (not committed)
+```
 
 ## Quickstart
 
 ```bash
 docker compose up -d
 pip install -r requirements.txt
-python ingest.py corpus/yourfile.pdf
+python -m rag.ingest corpus/yourfile.pdf
 ```
 
-Inspect what the PDF extractor actually produced before trusting any chunk:
+Inspect what the PDF extractor actually produced before trusting any chunk —
+extraction quality bounds everything downstream:
 
 ```bash
-python ingest.py corpus/yourfile.pdf --dump-text /tmp/extracted.txt
+python -m rag.ingest corpus/yourfile.pdf --dump-text /tmp/extracted.txt
+```
+
+Re-running ingest on an unchanged file is a no-op (content-hash short-circuit).
+Use `--force` to re-chunk and re-embed after changing chunker settings.
+
+## Verifying an ingest
+
+```sql
+-- no chunk may exceed the configured budget
+SELECT count(*), min(token_count), avg(token_count)::int, max(token_count) FROM chunks;
+
+-- every chunk must have a vector
+SELECT count(*) FILTER (WHERE embedding IS NULL) AS null_vecs, count(*) FROM chunks;
+
+-- page numbers survive, so citations can resolve
+SELECT chunk_index, metadata->>'page' AS page, token_count, left(content, 70)
+FROM chunks ORDER BY chunk_index LIMIT 8;
 ```
 
 ## Design decisions
@@ -74,6 +109,11 @@ rows, so hybrid retrieval is one SQL query over one table instead of two systems
 kept in sync — and metadata filters are just `WHERE`. The tradeoff is weaker
 behaviour at very large scale and index builds competing with the same instance.
 
+**Layout-aware extraction, not raw text.** PyMuPDF's block extraction is used so
+that paragraph boundaries are real, because the chunker's primary separator is
+the paragraph. Rotated margin text and bare page-number footers are filtered
+geometrically.
+
 **Chunk per page.** Preserves the page number needed for citations, at the cost
 of orphaning sections that straddle a page break (see Limitations).
 
@@ -81,6 +121,10 @@ of orphaning sections that straddle a page break (see Limitations).
 (`retrie-\nval`) or hard (`sequence-\naligned`). The document itself is used as
 the dictionary. The default favours keeping the hyphen, because a wrong join
 produces an unsearchable token while a wrong split leaves two searchable words.
+
+**Separate `embed_query` and `embed_documents`.** BGE models are asymmetric —
+queries take an instruction prefix, passages do not. Splitting them into two
+functions makes that a structural guarantee rather than a comment.
 
 ## Known limitations
 
@@ -93,7 +137,8 @@ produces an unsearchable token while a wrong split leaves two searchable words.
   Table-lookup questions are excluded from the eval set for this reason.
 - **The ingest cache keys on file bytes only.** Changing the embedding model or
   chunk config does not invalidate it. A same-dimension model swap would leave
-  stale vectors in a second embedding space with no error raised.
+  stale vectors in a second embedding space with no error raised. The fix is to
+  key on a fingerprint of the whole derivation, not just the input.
 
 ## Evaluation
 

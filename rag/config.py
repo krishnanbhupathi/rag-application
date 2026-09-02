@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PROJECT_ROOT = Path(__file__).parent
+# rag/config.py is one level down now, so climb twice to reach the repo root.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 DB_URL = os.getenv("DATABASE_URL", "postgresql://rag:rag@localhost:5433/rag")
 

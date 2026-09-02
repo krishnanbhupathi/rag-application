@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 
-from config import EMBED_BATCH_SIZE, EMBED_DIM, EMBED_MODEL, QUERY_PREFIX
+from .config import EMBED_BATCH_SIZE, EMBED_DIM, EMBED_MODEL, QUERY_PREFIX
 
 
 def _device() -> str:

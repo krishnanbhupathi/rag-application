@@ -2,8 +2,8 @@ from functools import lru_cache
 
 from transformers import AutoTokenizer
 
-from config import CHUNK_OVERLAP_TOKENS, CHUNK_TOKENS, EMBED_MODEL, MIN_CHUNK_CHARS
-from models import RawDocument, Chunk
+from .config import CHUNK_OVERLAP_TOKENS, CHUNK_TOKENS, EMBED_MODEL, MIN_CHUNK_CHARS
+from .models import RawDocument, Chunk
 
 SEPARATORS = ["\n\n", "\n", ". ", " "]
 

@@ -2,11 +2,11 @@ import argparse
 import time
 from pathlib import Path
 
-from chunking import chunk_document
-from db import get_document_hash, get_pool, replace_chunks, upsert_document, close_pool
-from embeddings import embed_documents
-from loaders import load_pdf
-from models import IngestResult
+from .chunking import chunk_document
+from .db import get_document_hash, get_pool, replace_chunks, upsert_document, close_pool
+from .embeddings import embed_documents
+from .loaders import load_pdf
+from .models import IngestResult
 
 
 def ingest_pdf(path: Path, *, force: bool = False) -> IngestResult:

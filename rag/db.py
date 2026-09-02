@@ -4,8 +4,8 @@ from pgvector.psycopg import register_vector
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
-from config import DB_URL, EMBED_DIM, PROJECT_ROOT
-from models import Chunk, RawDocument
+from .config import DB_URL, EMBED_DIM, PROJECT_ROOT
+from .models import Chunk, RawDocument
 
 _pool: ConnectionPool | None = None
 

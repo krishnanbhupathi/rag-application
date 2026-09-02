@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pymupdf
 
-from models import Page, RawDocument, SourceType
+from .models import Page, RawDocument, SourceType
 
 _LIGATURES = {
     "\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl",
