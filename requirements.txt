@@ -1,0 +1,8 @@
+psycopg[binary,pool]
+pgvector
+pymupdf
+sentence-transformers
+pydantic
+python-dotenv
+fastapi
+uvicorn[standard]
