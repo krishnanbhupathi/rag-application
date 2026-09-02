@@ -4,4 +4,4 @@ __pycache__/
 *.pyc
 .env
 .idea/
-.DS_Store
+.DS_StoreSPEC.md
